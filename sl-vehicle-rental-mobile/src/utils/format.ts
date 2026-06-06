@@ -2,9 +2,70 @@
 // Format Utils - String and data formatting utilities
 // ============================================================================
 
+import { formatCurrency } from './currency';
+
 /**
- * Truncate a string with ellipsis
+ * Format date for display
  */
+export const formatDate = (date: string | Date, format: 'short' | 'long' | 'time' = 'short'): string => {
+  const d = new Date(date);
+  
+  if (format === 'short') {
+    return d.toLocaleDateString('en-LK', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  }
+  
+  if (format === 'long') {
+    return d.toLocaleDateString('en-LK', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  }
+  
+  if (format === 'time') {
+    return d.toLocaleTimeString('en-LK', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  }
+  
+  return d.toLocaleDateString();
+};
+
+/**
+ * Format date range
+ */
+export const formatDateRange = (startDate: string | Date, endDate: string | Date): string => {
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  
+  return `${formatDate(start)} - ${formatDate(end)}`;
+};
+
+/**
+ * Format relative time (e.g., "2 hours ago")
+ */
+export const formatRelativeTime = (date: string | Date): string => {
+  const now = new Date();
+  const past = new Date(date);
+  const diffMs = now.getTime() - past.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+  
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 7) return `${diffDays}d ago`;
+  
+  return formatDate(date);
+};
+
+export { formatCurrency };
 export const truncate = (str: string, maxLength: number): string => {
   if (!str) return '';
   if (str.length <= maxLength) return str;

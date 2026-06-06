@@ -45,6 +45,15 @@ const FAQScreen = React.lazy(() => import('@/screens/support/FAQScreen'));
 const TrackingScreen = React.lazy(() => import('@/screens/tracking/TrackingScreen'));
 const MapScreen = React.lazy(() => import('@/screens/tracking/MapScreen'));
 const RouteHistoryScreen = React.lazy(() => import('@/screens/tracking/RouteHistoryScreen'));
+const AdminHomeScreen = React.lazy(() => import('@/screens/admin/AdminHomeScreen'));
+const AdminUsersScreen = React.lazy(() => import('@/screens/admin/AdminUsersScreen'));
+const AdminVehiclesScreen = React.lazy(() => import('@/screens/admin/AdminVehiclesScreen'));
+const AdminBookingsScreen = React.lazy(() => import('@/screens/admin/AdminBookingsScreen'));
+const AdminKYCScreen = React.lazy(() => import('@/screens/admin/AdminKYCScreen'));
+const AdminTransactionsScreen = React.lazy(() => import('@/screens/admin/AdminTransactionsScreen'));
+const AdminFraudScreen = React.lazy(() => import('@/screens/admin/AdminFraudScreen'));
+const AdminReportsScreen = React.lazy(() => import('@/screens/admin/AdminReportsScreen'));
+const MessagesScreen = React.lazy(() => import('@/screens/messages/MessagesScreen'));
 
 const Stack = createNativeStackNavigator<MainStackParamList>();
 

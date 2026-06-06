@@ -1,136 +1,179 @@
-import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, ScrollView } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../../theme/colors';
-import { typography } from '../../theme/typography';
-import { spacing } from '../../theme/spacing';
-import { SearchBar } from '../../components/common/SearchBar';
-import { FilterChip } from '../../components/common/FilterChip';
-import { Loader } from '../../components/common/Loader';
-import { EmptyState } from '../../components/common/EmptyState';
-import { useVehicles } from '../../hooks/useVehicles';
-import { formatCurrency } from '../../utils/currency';
-import { VEHICLE_TYPES, TRANSMISSION_TYPES, FUEL_TYPES, SRI_LANKAN_CITIES } from '../../utils/constants';
+import { ScreenWrapper } from '@/components/layout/ScreenWrapper';
+import { VehicleCard } from '@/components/vehicle/VehicleCard';
+import { VehicleFilters } from '@/components/vehicle/VehicleFilters';
+import { SearchBar } from '@/components/common/SearchBar';
+import { Loader } from '@/components/common/Loader';
+import { EmptyState } from '@/components/common/EmptyState';
+import { colors, typography, spacing, radii } from '@/theme';
+import type { MainScreenProps } from '@/types/navigation.types';
+import type { Vehicle } from '@/types/vehicle.types';
 
-interface VehicleSearchScreenProps {
-  navigation: any;
-}
+type Props = MainScreenProps<'VehicleList'>;
 
-const VehicleSearchScreen: React.FC<VehicleSearchScreenProps> = ({ navigation }) => {
-  const { vehicles, search, isLoading } = useVehicles();
-  const [query, setQuery] = useState('');
-  const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
-  const [selectedTransmission, setSelectedTransmission] = useState<string[]>([]);
-  const [selectedFuel, setSelectedFuel] = useState<string[]>([]);
-  const [selectedCity, setSelectedCity] = useState<string | null>(null);
-  const [priceRange, setPriceRange] = useState<[number, number]>([0, 50000]);
-  const [hasSearched, setHasSearched] = useState(false);
+export const VehicleListScreen: React.FC<Props> = ({ navigation, route }) => {
+  const { filters } = route.params || {};
+  const [searchQuery, setSearchQuery] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const [vehicles] = useState([
+    {
+      id: '1',
+      name: 'Toyota Prius',
+      type: 'Sedan',
+      pricePerDay: 5000,
+      rating: 4.8,
+      image: null,
+      location: 'Colombo',
+      transmission: 'Auto',
+      fuelType: 'Hybrid',
+      seats: 5,
+    },
+    {
+      id: '2',
+      name: 'Honda Vezel',
+      type: 'SUV',
+      pricePerDay: 7000,
+      rating: 4.6,
+      image: null,
+      location: 'Kandy',
+      transmission: 'Auto',
+      fuelType: 'Petrol',
+      seats: 5,
+    },
+  ]);
 
-  const toggleFilter = (arr: string[], setArr: React.Dispatch<React.SetStateAction<string[]>>, value: string) => {
-    setArr(arr.includes(value) ? arr.filter((v) => v !== value) : [...arr, value]);
-  };
-
-  const handleSearch = useCallback(() => {
-    setHasSearched(true);
-    search({
-      query: query || undefined,
-      type: selectedTypes.length > 0 ? selectedTypes : undefined,
-      transmission: selectedTransmission.length > 0 ? selectedTransmission : undefined,
-      fuelType: selectedFuel.length > 0 ? selectedFuel : undefined,
-      city: selectedCity || undefined,
-      priceMin: priceRange[0] > 0 ? priceRange[0] : undefined,
-      priceMax: priceRange[1] < 50000 ? priceRange[1] : undefined,
-    });
-  }, [query, selectedTypes, selectedTransmission, selectedFuel, selectedCity, priceRange]);
-
-  const clearFilters = () => {
-    setQuery('');
-    setSelectedTypes([]);
-    setSelectedTransmission([]);
-    setSelectedFuel([]);
-    setSelectedCity(null);
-    setPriceRange([0, 50000]);
-    setHasSearched(false);
-  };
+  const filteredVehicles = vehicles.filter(v =>
+    v.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    v.type.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
-    <View style={styles.container}>
-      <View style={styles.searchHeader}>
-        <SearchBar
-          value={query}
-          onChangeText={setQuery}
-          placeholder="Search by name, brand, model..."
-          onSubmit={handleSearch}
-          loading={isLoading}
-        />
-      </View>
-
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.filtersContainer}>
-        <Text style={styles.filterSectionTitle}>Vehicle Type</Text>
-        <View style={styles.chipWrap}>
-          {(VEHICLE_TYPES as unknown as { value: string; label: string }[]).map((item) => (
-            <FilterChip key={item.value} label={item.label} selected={selectedTypes.includes(item.value)}
-              onPress={() => toggleFilter(selectedTypes, setSelectedTypes, item.value)} />
-          ))}
+    <ScreenWrapper>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
+          </TouchableOpacity>
+          <Text style={styles.title}>Browse Vehicles</Text>
+          <TouchableOpacity
+            style={styles.filterButton}
+            onPress={() => setShowFilters(!showFilters)}
+          >
+            <Ionicons name="options-outline" size={24} color={colors.primary} />
+          </TouchableOpacity>
         </View>
 
-        <Text style={styles.filterSectionTitle}>Transmission</Text>
-        <View style={styles.chipWrap}>
-          {(TRANSMISSION_TYPES as unknown as { value: string; label: string }[]).map((item) => (
-            <FilterChip key={item.value} label={item.label} selected={selectedTransmission.includes(item.value)}
-              onPress={() => toggleFilter(selectedTransmission, setSelectedTransmission, item.value)} />
-          ))}
+        <View style={styles.searchContainer}>
+          <SearchBar
+            placeholder="Search by name or type..."
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
         </View>
 
-        <Text style={styles.filterSectionTitle}>Fuel Type</Text>
-        <View style={styles.chipWrap}>
-          {(FUEL_TYPES as unknown as { value: string; label: string }[]).map((item) => (
-            <FilterChip key={item.value} label={item.label} selected={selectedFuel.includes(item.value)}
-              onPress={() => toggleFilter(selectedFuel, setSelectedFuel, item.value)} />
-          ))}
-        </View>
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <Loader />
+          </View>
+        ) : (
+          <>
+            <View style={styles.resultsHeader}>
+              <Text style={styles.resultsCount}>
+                {filteredVehicles.length} vehicle{filteredVehicles.length !== 1 ? 's' : ''} found
+              </Text>
+            </View>
 
-        <Text style={styles.filterSectionTitle}>City</Text>
-        <View style={styles.chipWrap}>
-          {SRI_LANKAN_CITIES.slice(0, 8).map((city) => (
-            <FilterChip key={city} label={city} selected={selectedCity === city}
-              onPress={() => setSelectedCity(selectedCity === city ? null : city)} />
-          ))}
-        </View>
+            {filteredVehicles.length === 0 ? (
+              <EmptyState
+                icon="car-outline"
+                title="No Vehicles Found"
+              />
+            ) : (
+              <ScrollView
+                style={styles.scrollView}
+                contentContainerStyle={styles.scrollContent}
+                showsVerticalScrollIndicator={false}
+              >
+                {filteredVehicles.map((vehicle) => (
+                  <TouchableOpacity
+                    key={vehicle.id}
+                    onPress={() => navigation.navigate('VehicleDetail', { vehicleId: vehicle.id })}
+                  >
+                    <VehicleCard
+                      vehicle={vehicle as any}
+                      onPress={() => navigation.navigate('VehicleDetail', { vehicleId: vehicle.id })}
+                    />
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+          </>
+        )}
 
-        <TouchableOpacity style={styles.clearBtn} onPress={clearFilters}>
-          <Text style={styles.clearBtnText}>Clear All Filters</Text>
-        </TouchableOpacity>
 
-        <TouchableOpacity style={styles.applyBtn} onPress={handleSearch}>
-          <Text style={styles.applyBtnText}>Search Vehicles</Text>
-        </TouchableOpacity>
-      </ScrollView>
-
-      {hasSearched && !isLoading && vehicles.length === 0 && (
-        <EmptyState icon="search-outline" title="No results" message="Try different filters or search terms" />
-      )}
-    </View>
+      </SafeAreaView>
+    </ScreenWrapper>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  searchHeader: { paddingHorizontal: spacing['4'], paddingTop: spacing['3'], backgroundColor: colors.surface },
-  filtersContainer: { padding: spacing['4'] },
-  filterSectionTitle: { ...typography.labelMedium, color: colors.textPrimary, marginBottom: spacing['2'], marginTop: spacing['3'] },
-  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing['2'] },
-  clearBtn: {
-    marginTop: spacing['6'], paddingVertical: spacing['3'], alignItems: 'center',
-    borderWidth: 1, borderColor: colors.border, borderRadius: 12,
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
   },
-  clearBtnText: { ...typography.labelMedium, color: colors.textSecondary },
-  applyBtn: {
-    marginTop: spacing['3'], paddingVertical: spacing['3'], alignItems: 'center',
-    backgroundColor: colors.primary, borderRadius: 12, marginBottom: spacing['6'],
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing['4'],
+    gap: spacing['3'],
   },
-  applyBtnText: { ...typography.labelMedium, color: colors.primaryForeground },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: radii.lg,
+    backgroundColor: colors.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  title: {
+    flex: 1,
+    ...typography.h2,
+    color: colors.textPrimary,
+  },
+  filterButton: {
+    width: 40,
+    height: 40,
+    borderRadius: radii.lg,
+    backgroundColor: colors.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  searchContainer: {
+    paddingHorizontal: spacing['4'],
+    paddingBottom: spacing['2'],
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  resultsHeader: {
+    paddingHorizontal: spacing['4'],
+    paddingVertical: spacing['2'],
+  },
+  resultsCount: {
+    ...typography.bodyMedium,
+    color: colors.textSecondary,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: spacing['4'],
+    paddingTop: 0,
+    gap: spacing['3'],
+  },
 });
-
-export default VehicleSearchScreen;
-export { VehicleSearchScreen };
