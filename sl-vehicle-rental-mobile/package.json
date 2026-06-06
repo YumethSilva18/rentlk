@@ -32,7 +32,7 @@
     "expo-camera": "~16.0.0",
     "expo-constants": "~17.0.0",
     "expo-crypto": "~14.0.0",
-    "expo-dev-client": "^56.0.18",
+    "expo-dev-client": "^56.0.19",
     "expo-device": "~7.0.0",
     "expo-file-system": "~18.0.0",
     "expo-font": "~13.0.0",
