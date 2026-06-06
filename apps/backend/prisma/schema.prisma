@@ -1,0 +1,724 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["fullTextSearch", "postgresqlExtensions"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  CUSTOMER
+  OWNER
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum KYCStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+  DISPUTED
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum PaymentMethod {
+  PAYHERE
+  STRIPE
+  EZCASH
+  WALLET
+  BANK_TRANSFER
+}
+
+enum VehicleStatus {
+  DRAFT
+  ACTIVE
+  RENTED
+  MAINTENANCE
+  INACTIVE
+}
+
+enum VehicleType {
+  CAR
+  VAN
+  SUV
+  MOTORCYCLE
+  TUKTUK
+  LUXURY
+  COMMERCIAL
+}
+
+enum TransmissionType {
+  MANUAL
+  AUTOMATIC
+}
+
+enum FuelType {
+  PETROL
+  DIESEL
+  ELECTRIC
+  HYBRID
+}
+
+enum NotificationType {
+  BOOKING_REQUEST
+  BOOKING_CONFIRMED
+  BOOKING_CANCELLED
+  PAYMENT_RECEIVED
+  PAYMENT_FAILED
+  KYC_APPROVED
+  KYC_REJECTED
+  NEW_MESSAGE
+  REVIEW_RECEIVED
+  VEHICLE_APPROVED
+  FRAUD_ALERT
+  SYSTEM
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  DOCUMENT
+  LOCATION
+}
+
+enum PayoutStatus {
+  PENDING
+  APPROVED
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum WalletTransactionType {
+  CREDIT
+  DEBIT
+  HOLD
+  RELEASE
+  REFUND
+  COMMISSION
+  PAYOUT
+}
+
+enum SessionStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+}
+
+model User {
+  id                String       @id @default(uuid())
+  phoneNumber       String       @unique
+  email             String?      @unique
+  passwordHash      String
+  firstName         String
+  lastName          String
+  role              UserRole     @default(CUSTOMER)
+  isVerified        Boolean      @default(false)
+  isActive          Boolean      @default(true)
+  isSuspended       Boolean      @default(false)
+  suspendedReason   String?
+  profileImage      String?
+  address           String?
+  city              String?
+  district          String?
+  rating            Float        @default(0)
+  reviewCount       Int          @default(0)
+  referralCode      String?      @unique
+  referredById      String?
+  loginAttempts     Int          @default(0)
+  lockedUntil       DateTime?
+  preferredLanguage String?      @default("en")
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  // Relations
+  vehicles                    Vehicle[]
+  bookingsAsRenter            Booking[]                   @relation("RenterBookings")
+  bookingsAsOwner             Booking[]                   @relation("OwnerBookings")
+  payments                    Payment[]
+  wallet                      Wallet?
+  kycDocuments                KYCDocument[]
+  sentMessages                Message[]                   @relation("SenderMessages")
+  receivedMessages            Message[]                   @relation("ReceiverMessages")
+  reviewsGiven                Review[]                    @relation("ReviewerReviews")
+  reviewsReceived             Review[]                    @relation("RevieweeReviews")
+  notifications               Notification[]
+  trackingSessions            TrackingSession[]
+  referredBy                  User?                       @relation("Referrals", fields: [referredById], references: [id])
+  referrals                   User[]                      @relation("Referrals")
+  sessions                    UserSession[]
+  savedVehicles               SavedVehicle[]
+  preferences                 UserPreference?
+  conversationParticipations  ConversationParticipant[]
+  payouts                     Payout[]
+  refreshToken                String?
+  lastLoginAt                 DateTime?
+
+  @@index([phoneNumber])
+  @@index([email])
+  @@index([role])
+  @@index([isSuspended])
+  @@map("users")
+}
+
+model Vehicle {
+  id              String           @id @default(uuid())
+  ownerId         String
+  title           String
+  description     String?
+  type            VehicleType      @default(CAR)
+  make            String
+  model           String
+  year            Int
+  licensePlate    String           @unique
+  transmission    TransmissionType @default(MANUAL)
+  fuelType        FuelType         @default(PETROL)
+  seats           Int              @default(5)
+  doors           Int              @default(4)
+  hasAC           Boolean          @default(false)
+  hasGPS          Boolean          @default(false)
+  mileage         Int?
+  color           String?
+  dailyRate       Decimal          @db.Decimal(10, 2)
+  weeklyDiscount  Decimal?         @db.Decimal(5, 2)
+  monthlyDiscount Decimal?         @db.Decimal(5, 2)
+  securityDeposit Decimal          @default(0) @db.Decimal(10, 2)
+  status          VehicleStatus    @default(DRAFT)
+  moderationStatus String          @default("APPROVED")
+  city            String
+  district        String
+  latitude        Float?
+  longitude       Float?
+  rating          Float            @default(0)
+  reviewCount     Int              @default(0)
+  bookingCount    Int              @default(0)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  owner             User              @relation(fields: [ownerId], references: [id])
+  images            VehicleImage[]
+  documents         VehicleDocument[]
+  features          VehicleFeature[]
+  bookings          Booking[]
+  reviews           Review[]
+  trackingSessions  TrackingSession[]
+  availability      VehicleAvailability[]
+  savedBy           SavedVehicle[]
+
+  @@index([ownerId])
+  @@index([status])
+  @@index([type])
+  @@index([city])
+  @@index([dailyRate])
+  @@index([latitude, longitude])
+  @@map("vehicles")
+}
+
+model VehicleImage {
+  id        String   @id @default(uuid())
+  vehicleId String
+  url       String
+  thumbnail String?
+  alt       String?
+  isPrimary Boolean  @default(false)
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@index([vehicleId])
+  @@map("vehicle_images")
+}
+
+model VehicleDocument {
+  id        String   @id @default(uuid())
+  vehicleId String
+  type      String
+  url       String
+  verified  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@index([vehicleId])
+  @@map("vehicle_documents")
+}
+
+model VehicleFeature {
+  id        String @id @default(uuid())
+  vehicleId String
+  name      String
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@unique([vehicleId, name])
+  @@map("vehicle_features")
+}
+
+model VehicleAvailability {
+  id        String   @id @default(uuid())
+  vehicleId String
+  startDate DateTime
+  endDate   DateTime
+  isBlocked Boolean  @default(false)
+  reason    String?
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@index([vehicleId])
+  @@index([startDate, endDate])
+  @@map("vehicle_availability")
+}
+
+model Booking {
+  id              String        @id @default(uuid())
+  renterId        String
+  ownerId         String
+  vehicleId       String
+  status          BookingStatus @default(PENDING)
+  startDate       DateTime
+  endDate         DateTime
+  totalDays       Int
+  dailyRate       Decimal       @db.Decimal(10, 2)
+  subtotal        Decimal       @db.Decimal(10, 2)
+  discount        Decimal       @default(0) @db.Decimal(10, 2)
+  platformFee     Decimal       @db.Decimal(10, 2)
+  totalAmount     Decimal       @db.Decimal(10, 2)
+  securityDeposit Decimal       @db.Decimal(10, 2)
+  isWithDriver    Boolean       @default(false)
+  pickupLocation  String?
+  dropoffLocation String?
+  notes           String?
+  cancelledAt     DateTime?
+  cancelledById   String?
+  cancelReason    String?
+  qrCode          String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  renter             User                  @relation("RenterBookings", fields: [renterId], references: [id])
+  owner              User                  @relation("OwnerBookings", fields: [ownerId], references: [id])
+  vehicle            Vehicle               @relation(fields: [vehicleId], references: [id])
+  cancelledBy        User?                 @relation(fields: [cancelledById], references: [id])
+  payments           Payment[]
+  reviews            Review[]
+  trackingSessions   TrackingSession[]
+  messages           Message[]
+  notifications      Notification[]
+  statusHistory      BookingStatusHistory[]
+  conversations      Conversation[]
+
+  @@index([renterId])
+  @@index([ownerId])
+  @@index([vehicleId])
+  @@index([status])
+  @@index([startDate, endDate])
+  @@index([createdAt])
+  @@map("bookings")
+}
+
+model Payment {
+  id              String        @id @default(uuid())
+  bookingId       String
+  userId          String
+  amount          Decimal       @db.Decimal(10, 2)
+  status          PaymentStatus @default(PENDING)
+  method          PaymentMethod
+  gatewayRef      String?
+  gatewayResponse Json?
+  description     String?
+  idempotencyKey  String?       @unique
+  refundedAmount  Decimal       @default(0) @db.Decimal(10, 2)
+  refundReason    String?
+  refundedAt      DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  booking Booking @relation(fields: [bookingId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@index([bookingId])
+  @@index([userId])
+  @@index([status])
+  @@index([idempotencyKey])
+  @@map("payments")
+}
+
+model Wallet {
+  id               String   @id @default(uuid())
+  userId           String   @unique
+  balance          Decimal  @default(0) @db.Decimal(12, 2)
+  pendingBalance   Decimal  @default(0) @db.Decimal(12, 2)
+  availableBalance Decimal  @default(0) @db.Decimal(12, 2)
+  heldBalance      Decimal  @default(0) @db.Decimal(12, 2)
+  totalEarned      Decimal  @default(0) @db.Decimal(12, 2)
+  totalWithdrawn   Decimal  @default(0) @db.Decimal(12, 2)
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user         User              @relation(fields: [userId], references: [id])
+  transactions WalletTransaction[]
+  payouts      Payout[]
+
+  @@map("wallets")
+}
+
+model WalletTransaction {
+  id              String   @id @default(uuid())
+  walletId        String
+  amount          Decimal  @db.Decimal(12, 2)
+  type            String
+  description     String
+  reference       String?
+  bookingId       String?
+  runningBalance  Decimal  @db.Decimal(12, 2)
+  createdAt       DateTime @default(now())
+
+  wallet  Wallet   @relation(fields: [walletId], references: [id])
+  booking Booking? @relation(fields: [bookingId], references: [id])
+
+  @@index([walletId])
+  @@index([createdAt])
+  @@map("wallet_transactions")
+}
+
+model KYCDocument {
+  id             String    @id @default(uuid())
+  userId         String
+  type           String
+  documentNumber String?
+  frontImage     String
+  backImage      String?
+  selfieImage    String?
+  status         KYCStatus @default(PENDING)
+  verifiedAt     DateTime?
+  verifiedBy     String?
+  rejectReason   String?
+  expiresAt      DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  user     User  @relation(fields: [userId], references: [id])
+  verifier User? @relation(fields: [verifiedBy], references: [id])
+
+  @@index([userId])
+  @@index([status])
+  @@map("kyc_documents")
+}
+
+model Message {
+  id             String      @id @default(uuid())
+  conversationId String?
+  bookingId      String?
+  senderId       String
+  receiverId     String
+  content        String
+  type           MessageType @default(TEXT)
+  attachment     String?
+  attachmentMeta Json?
+  isRead         Boolean     @default(false)
+  readAt         DateTime?
+  createdAt      DateTime    @default(now())
+
+  sender       User          @relation("SenderMessages", fields: [senderId], references: [id])
+  receiver     User          @relation("ReceiverMessages", fields: [receiverId], references: [id])
+  booking      Booking?      @relation(fields: [bookingId], references: [id])
+  conversation Conversation? @relation(fields: [conversationId], references: [id])
+
+  @@index([bookingId])
+  @@index([conversationId])
+  @@index([senderId, receiverId])
+  @@index([createdAt])
+  @@map("messages")
+}
+
+model Review {
+  id        String   @id @default(uuid())
+  bookingId String   @unique
+  reviewerId String
+  revieweeId String
+  vehicleId String?
+  rating    Int
+  comment   String?
+  isPublic  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  booking  Booking  @relation(fields: [bookingId], references: [id])
+  reviewer User     @relation("ReviewerReviews", fields: [reviewerId], references: [id])
+  reviewee User     @relation("RevieweeReviews", fields: [revieweeId], references: [id])
+  vehicle  Vehicle? @relation(fields: [vehicleId], references: [id])
+
+  @@index([reviewerId])
+  @@index([revieweeId])
+  @@index([vehicleId])
+  @@map("reviews")
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  type      NotificationType
+  title     String
+  message   String
+  data      Json?
+  isRead    Boolean          @default(false)
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, isRead])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+model TrackingSession {
+  id          String   @id @default(uuid())
+  bookingId   String
+  vehicleId   String
+  driverId    String?
+  status      String   @default("ACTIVE")
+  startTime   DateTime
+  endTime     DateTime?
+  distanceKm  Float?
+  avgSpeed    Float?
+  maxSpeed    Float?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  booking    Booking           @relation(fields: [bookingId], references: [id])
+  vehicle    Vehicle           @relation(fields: [vehicleId], references: [id])
+  driver     User?             @relation(fields: [driverId], references: [id])
+  locations  TrackingLocation[]
+
+  @@index([bookingId])
+  @@index([vehicleId])
+  @@index([status])
+  @@map("tracking_sessions")
+}
+
+model TrackingLocation {
+  id         String   @id @default(uuid())
+  sessionId  String
+  latitude   Float
+  longitude  Float
+  speed      Float?
+  heading    Float?
+  accuracy   Float?
+  timestamp  DateTime
+
+  session TrackingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, timestamp])
+  @@map("tracking_locations")
+}
+
+model OtpRecord {
+  id          String    @id @default(uuid())
+  phoneNumber String
+  code        String
+  expiresAt   DateTime
+  verified    Boolean   @default(false)
+  attemptCount Int      @default(0)
+  createdAt   DateTime  @default(now())
+
+  @@index([phoneNumber, verified])
+  @@index([expiresAt])
+  @@map("otp_records")
+}
+
+model AdminLog {
+  id         String   @id @default(uuid())
+  adminId    String
+  action     String
+  entity     String
+  entityId   String?
+  details    Json?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  @@index([adminId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("admin_logs")
+}
+
+model FraudAlert {
+  id         String   @id @default(uuid())
+  userId     String?
+  bookingId  String?
+  type       String
+  severity   String   @default("LOW")
+  score      Float?
+  details    Json?
+  isResolved Boolean  @default(false)
+  resolvedBy String?
+  resolvedAt DateTime?
+  resolution String?
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([severity])
+  @@index([isResolved])
+  @@map("fraud_alerts")
+}
+
+model Conversation {
+  id        String   @id @default(uuid())
+  bookingId String?
+  title     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  booking      Booking?                  @relation(fields: [bookingId], references: [id])
+  participants ConversationParticipant[]
+  messages     Message[]
+
+  @@index([bookingId])
+  @@map("conversations")
+}
+
+model ConversationParticipant {
+  id             String   @id @default(uuid())
+  conversationId String
+  userId         String
+  role           String   @default("member")
+  joinedAt       DateTime @default(now())
+  lastReadAt     DateTime?
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id])
+
+  @@unique([conversationId, userId])
+  @@index([userId])
+  @@map("conversation_participants")
+}
+
+model BookingStatusHistory {
+  id         String   @id @default(uuid())
+  bookingId  String
+  fromStatus String?
+  toStatus   String
+  changedBy  String?
+  reason     String?
+  createdAt  DateTime @default(now())
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+  @@index([createdAt])
+  @@map("booking_status_history")
+}
+
+model Payout {
+  id          String       @id @default(uuid())
+  userId      String
+  walletId    String
+  amount      Decimal      @db.Decimal(12, 2)
+  status      PayoutStatus @default(PENDING)
+  bankDetails Json?
+  approvedBy  String?
+  approvedAt  DateTime?
+  processedAt DateTime?
+  failedReason String?
+  reference    String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id])
+  wallet Wallet @relation(fields: [walletId], references: [id])
+
+  @@index([userId])
+  @@index([walletId])
+  @@index([status])
+  @@map("payouts")
+}
+
+model SavedVehicle {
+  id        String   @id @default(uuid())
+  userId    String
+  vehicleId String
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id])
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id])
+
+  @@unique([userId, vehicleId])
+  @@index([userId])
+  @@map("saved_vehicles")
+}
+
+model UserSession {
+  id           String        @id @default(uuid())
+  userId       String
+  token        String
+  deviceInfo   Json?
+  ipAddress    String?
+  userAgent    String?
+  status       SessionStatus @default(ACTIVE)
+  lastActiveAt DateTime      @default(now())
+  expiresAt    DateTime
+  createdAt    DateTime      @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([token])
+  @@index([status])
+  @@map("user_sessions")
+}
+
+model UserPreference {
+  id                  String  @id @default(uuid())
+  userId              String  @unique
+  language            String  @default("en")
+  currency            String  @default("LKR")
+  emailNotifications  Boolean @default(true)
+  smsNotifications    Boolean @default(true)
+  pushNotifications   Boolean @default(true)
+  bookingAlerts       Boolean @default(true)
+  paymentAlerts       Boolean @default(true)
+  marketingAlerts     Boolean @default(false)
+  updatedAt           DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("user_preferences")
+}
+
+model AdminNote {
+  id        String   @id @default(uuid())
+  adminId   String
+  entity    String
+  entityId  String
+  note      String
+  isPinned  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([entity, entityId])
+  @@index([adminId])
+  @@map("admin_notes")
+}

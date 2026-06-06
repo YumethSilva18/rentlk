@@ -1,0 +1,2 @@
+export const VERIFY_BOOKING_COMPLETION_DAYS = 2;
+export const AUTO_CANCEL_PENDING_HOURS = 24;

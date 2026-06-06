@@ -1,0 +1,29 @@
+{
+  "name": "sl-vehicle-rental-platform",
+  "version": "1.0.0",
+  "description": "Sri Lanka Vehicle Rental Platform - Monorepo",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "libs/*"
+  ],
+  "scripts": {
+    "build:backend": "cd apps/backend && npm run build",
+    "dev:backend": "cd apps/backend && npm run start:dev",
+    "test:backend": "cd apps/backend && npm run test",
+    "lint": "npm run lint --workspaces --if-present",
+    "type-check": "npm run type-check --workspaces --if-present",
+    "db:migrate": "cd apps/backend && npx prisma migrate dev",
+    "db:seed": "cd apps/backend && npx prisma db seed",
+    "db:studio": "cd apps/backend && npx prisma studio",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}
